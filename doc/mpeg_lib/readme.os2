@@ -1,0 +1,6 @@
+* This is mpeg_lib-1.2.1 ported to emx-0.9c/os2.
+* The library is compiled with -Zmt flag.
+* This library is used by some XFree86/OS2 programs.
+--
+Hung-Chi Chu <hcchu@r350.ee.ntu.edu.tw>
+

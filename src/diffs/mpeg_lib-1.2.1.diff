@@ -1,0 +1,149 @@
+diff -ruN mpeg_lib.orig/config.h mpeg_lib/config.h
+--- mpeg_lib.orig/config.h	Thu Jan  1 00:00:00 1970
++++ mpeg_lib/config.h	Wed Jul  8 01:26:12 1998
+@@ -0,0 +1,13 @@
++/* config.h.  Generated automatically by configure.  */
++#define ENABLE_DITHER 1
++#define STDC_HEADERS 1
++#define HAVE_SYS_TIME_H 1
++#define HAVE_UNISTD_H 1
++#define TIME_WITH_SYS_TIME 1
++#define HAVE_VPRINTF 1
++#define HAVE_STRTOD 1
++#define HAVE_STRTOL 1
++/* #undef HAVE_LRAND48 */ 
++#define HAVE_GETRUSAGE 0
++/* #undef CLK_TCK */
++/* #undef _HPUX_SOURCE */
+diff -ruN mpeg_lib.orig/extras/Makefile.emx mpeg_lib/extras/Makefile.emx
+--- mpeg_lib.orig/extras/Makefile.emx	Thu Jan  1 00:00:00 1970
++++ mpeg_lib/extras/Makefile.emx	Tue Jul 14 03:35:16 1998
+@@ -0,0 +1,15 @@
++CC            = gcc
++OPT           = -O6 -m486 -Zmtd -Zomf
++DEFS          = -DHAVE_CONFIG_H -D__ST_MT_ERRNO__
++INCLUDE       = -I..
++CFLAGS        = $(OPT) $(DEFS) $(INCLUDE)
++SHELL         = sh
++
++all:		mpegtest.exe
++
++mpegtest.exe:	$(LIBRARY) mpegtest.o ParseArgv.o
++		$(CC) $(CFLAGS) mpegtest.o ParseArgv.o mpegtest.def -o $@ -L.. -lmpeg -Zbin-files
++
++clean:
++		rm -f *.exe *.o
++
+diff -ruN mpeg_lib.orig/extras/mpegtest.c mpeg_lib/extras/mpegtest.c
+--- mpeg_lib.orig/extras/mpegtest.c	Tue Feb 27 02:12:42 1996
++++ mpeg_lib/extras/mpegtest.c	Sun Jul 12 02:07:06 1998
+@@ -282,4 +282,5 @@
+       printf ("(%g frames/sec)\n", total_time, 1/total_time);
+    else
+       printf ("\n");
++   exit(0);
+ }
+diff -ruN mpeg_lib.orig/extras/mpegtest.def mpeg_lib/extras/mpegtest.def
+--- mpeg_lib.orig/extras/mpegtest.def	Thu Jan  1 00:00:00 1970
++++ mpeg_lib/extras/mpegtest.def	Sun Jul 12 04:17:18 1998
+@@ -0,0 +1,2 @@
++NAME WINDOWCOMPAT
++STACKSIZE 32768
+diff -ruN mpeg_lib.orig/Makefile.emx mpeg_lib/Makefile.emx
+--- mpeg_lib.orig/Makefile.emx	Thu Jan  1 00:00:00 1970
++++ mpeg_lib/Makefile.emx	Fri Jan 22 21:59:38 1999
+@@ -0,0 +1,50 @@
++prefix = e:/emx
++exec_prefix = e:/unix
++
++CC            = gcc
++OPT           = -O6 -m486 -Zmt -Zomf
++DEFS          = -DHAVE_CONFIG_H -D__ST_MT_ERRNO__
++INCLUDES      = -I.
++CFLAGS        = $(OPT) $(DEFS) $(INCLUDES)
++AR            = ar
++ARFLAGS       = ru
++SHELL         = sh
++
++DECODER_SRC   = util.c video.c parseblock.c motionvector.c decoders.c \
++		jrevdct.c wrapper.c globals.c 24bit.c gdith.c
++DITHER_SRC    = fs2.c fs2fast.c fs4.c hybrid.c hybriderr.c 2x2.c gray.c \
++		mono.c ordered.c ordered2.c mb_ordered.c
++LIBSRC        = $(DECODER_SRC) $(DITHER_SRC)
++LIBOBJ        = $(DECODER_SRC:.c=.o) $(DITHER_SRC:.c=.o)
++
++all:		mpeg.dll extras/mpegtest.exe
++
++mpeg.dll:	$(LIBOBJ) mpegos2.def
++		emximp -o mpeg.a mpegos2.def
++		emximp -o mpeg.lib mpegos2.def
++		$(CC) -s -o mpeg.dll $(LIBOBJ) mpegos2.def -Zmtd -Zdll -Zomf -lsocket -lbsd
++
++check:		extras/mpegtest.exe
++		extras/mpegtest -checksum test.mpg
++
++extras/mpegtest.exe:
++		(cd extras ; $(MAKE) -f Makefile.emx all)
++
++install:	all
++		@install -d $(prefix)/lib
++		install -c mpeg.a mpeg.lib $(prefix)/lib
++		@install -d $(prefix)/dll
++		install -c mpeg.dll $(prefix)/dll
++		@install -d $(prefix)/include
++		install -c mpeg.h $(prefix)/include
++#		@install -d $(exec_prefix)/bin
++#		install -c extras/mpegtest.exe $(exec_prefix)/bin
++
++clean:
++		rm -f *.a *.lib *.dll *.o *.obj
++		(cd extras ; $(MAKE) -f Makefile.emx clean)
++
++#
++release:
++	$(MAKE) -f Makefile.emx install clean prefix=f:/release/mpeg
++
+diff -ruN mpeg_lib.orig/mpegos2.def mpeg_lib/mpegos2.def
+--- mpeg_lib.orig/mpegos2.def	Thu Jan  1 00:00:00 1970
++++ mpeg_lib/mpegos2.def	Fri Sep 18 00:57:32 1998
+@@ -0,0 +1,12 @@
++LIBRARY mpeg
++DESCRIPTION "MPEG Library v1.2.1"
++CODE	PRELOAD
++DATA	MULTIPLE NONSHARED
++STACKSIZE 32768
++EXPORTS
++	OpenMPEG @ 1
++	GetMPEGInfo @ 2
++	CloseMPEG @ 3
++	RewindMPEG @ 4
++	SetMPEGOption @ 5
++	GetMPEGFrame @ 6
+diff -ruN mpeg_lib.orig/video.c mpeg_lib/video.c
+--- mpeg_lib.orig/video.c	Tue Sep 26 01:17:48 1995
++++ mpeg_lib/video.c	Sun Jul 12 02:09:28 1998
+@@ -499,7 +499,10 @@
+     /* Sequence done.  Return NULL to caller to indicate just that. */
+ 
+ 
++#if 0
++    /* should be destroyed by CloseMPEG() */
+     DestroyVidStream(curVidStream);
++#endif
+     dprintf ("mpegVidRsrc: movie done, returning NULL\n");
+     return (NULL);
+     break;
+diff -ruN mpeg_lib.orig/wrapper.c mpeg_lib/wrapper.c
+--- mpeg_lib.orig/wrapper.c	Wed Oct 11 05:08:38 1995
++++ mpeg_lib/wrapper.c	Tue Jul 14 03:47:40 1998
+@@ -390,6 +390,10 @@
+ 
+    dprintf ("\nGetMPEGFrame: just received a finished frame: "
+ 	    "copying from %08X to %08X\n", CurrentImage, Frame);
++#if 1
++   /* fix a bug pointed in gimp/plug-ins/mpeg */
++   if (!MovieDone)
++#endif
+    memcpy (Frame, CurrentImage, ImageInfo.Size);
+    return (!MovieDone);
+ 
